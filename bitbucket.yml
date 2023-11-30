@@ -1,0 +1,590 @@
+openapi: 3.0.1
+info:
+  title: Bitbucket API
+  version: 1.0.0
+  description: API endpoints for interacting with BitBucket
+servers:
+  - url: https://api.bitbucket.org
+    description: Production server
+paths:
+  /repositories:
+    get:
+      tags:
+        - Repositories
+      description: Returns a paginated list of all public repositories.  This endpoint
+        also supports filtering and sorting of the results. See [filtering and sorting](/cloud/bitbucket/rest/intro/#filtering)
+        for more details.
+      operationId: get_repositories
+      summary: List public repositories
+      responses:
+        '200':
+          description: All public repositories.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/paginated_repositories"
+      parameters:
+        - name: after
+          in: query
+          description: 'Filter the results to include only repositories created on or after this [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601)  timestamp.'
+          required: false
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: 'Filters the result based on the authenticated user''s role on each repository.  * **member**: returns repositories to which the user has explicit read access * **contributor**: returns repositories to which the user has explicit write access * **admin**: returns repositories to which the user has explicit administrator access * **owner**: returns all repositories owned by the current user '
+          required: false
+          schema:
+            type: string
+            enum:
+              - admin
+              - contributor
+              - member
+              - owner
+        - name: q
+          in: query
+          description: 'Query string to narrow down the response as per [filtering and sorting](/cloud/bitbucket/rest/intro/#filtering). `role` parameter must also be specified. '
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: 'Field by which the results should be sorted as per [filtering and sorting](/cloud/bitbucket/rest/intro/#filtering). '
+          required: false
+          schema:
+            type: string
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    object:
+      type: object
+      description: Base type for most resource objects. It defines the common `type`
+        element that identifies an object's type. It also identifies the element as
+        Swagger's `discriminator`.
+      properties:
+        type:
+          type: string
+      required:
+        - type
+      additionalProperties: true
+      discriminator:
+        propertyName: type
+    link:
+      type: object
+      title: Link
+      description: A link to a resource related to this object.
+      properties:
+        href:
+          type: string
+          format: uri
+        name:
+          type: string
+      additionalProperties: false
+    account_links:
+      type: object
+      title: Account Links
+      description: Links related to an Account.
+      properties:
+        avatar:
+          "$ref": "#/components/schemas/link"
+      additionalProperties: true
+    account:
+      allOf:
+        - "$ref": "#/components/schemas/object"
+        - type: object
+          title: Account
+          description: An account object.
+          properties:
+            links:
+              "$ref": "#/components/schemas/account_links"
+            created_on:
+              type: string
+              format: date-time
+            display_name:
+              type: string
+            username:
+              type: string
+              pattern: "^[a-zA-Z0-9_\\-]+$"
+            uuid:
+              type: string
+          additionalProperties: true
+    participant:
+      allOf:
+        - "$ref": "#/components/schemas/object"
+        - type: object
+          title: Participant
+          description: Object describing a user's role on resources like commits or
+            pull requests.
+          properties:
+            user:
+              "$ref": "#/components/schemas/account"
+            role:
+              type: string
+              enum:
+                - PARTICIPANT
+                - REVIEWER
+            approved:
+              type: boolean
+            state:
+              type: string
+              enum:
+                - approved
+                - changes_requested
+                -
+            participated_on:
+              type: string
+              description: The ISO8601 timestamp of the participant's action. For approvers,
+                this is the time of their approval. For commenters and pull request
+                reviewers who are not approvers, this is the time they last commented,
+                or null if they have not commented.
+              format: date-time
+          additionalProperties: true
+    team_links:
+      allOf:
+        - "$ref": "#/components/schemas/account_links"
+        - type: object
+          title: Team Links
+          description: Links related to a Team.
+          properties:
+            self:
+              "$ref": "#/components/schemas/link"
+            html:
+              "$ref": "#/components/schemas/link"
+            members:
+              "$ref": "#/components/schemas/link"
+            projects:
+              "$ref": "#/components/schemas/link"
+            repositories:
+              "$ref": "#/components/schemas/link"
+          additionalProperties: true
+    team:
+      allOf:
+        - "$ref": "#/components/schemas/account"
+        - type: object
+          title: Team
+          description: A team object.
+          properties:
+            links:
+              "$ref": "#/components/schemas/team_links"
+          additionalProperties: true
+    project:
+      allOf:
+        - "$ref": "#/components/schemas/object"
+        - type: object
+          title: Project
+          description: A Bitbucket project.             Projects are used by teams to
+            organize repositories.
+          properties:
+            links:
+              type: object
+              properties:
+                html:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                avatar:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+              additionalProperties: false
+            uuid:
+              type: string
+              description: The project's immutable id.
+            key:
+              type: string
+              description: The project's key.
+            owner:
+              "$ref": "#/components/schemas/team"
+            name:
+              type: string
+              description: The name of the project.
+            description:
+              type: string
+            is_private:
+              type: boolean
+              description: " Indicates whether the project is publicly accessible, or whether it is private to the team and consequently only visible to team members. Note that private projects cannot contain public repositories."
+            created_on:
+              type: string
+              format: date-time
+            updated_on:
+              type: string
+              format: date-time
+            has_publicly_visible_repos:
+              type: boolean
+              description: " Indicates whether the project contains publicly visible repositories. Note that private projects cannot contain public repositories."
+          additionalProperties: true
+    commit:
+      allOf:
+        - "$ref": "#/components/schemas/base_commit"
+        - type: object
+          title: Commit
+          description: A repository commit object.
+          properties:
+            repository:
+              "$ref": "#/components/schemas/repository"
+            participants:
+              type: array
+              items:
+                "$ref": "#/components/schemas/participant"
+              minItems: 0
+          additionalProperties: true
+    ref:
+      type: object
+      title: Ref
+      description: A ref object, representing a branch or tag in a repository.
+      properties:
+        type:
+          type: string
+        links:
+          type: object
+          properties:
+            self:
+              type: object
+              title: Link
+              description: A link to a resource related to this object.
+              properties:
+                href:
+                  type: string
+                  format: uri
+                name:
+                  type: string
+              additionalProperties: false
+            commits:
+              type: object
+              title: Link
+              description: A link to a resource related to this object.
+              properties:
+                href:
+                  type: string
+                  format: uri
+                name:
+                  type: string
+              additionalProperties: false
+            html:
+              type: object
+              title: Link
+              description: A link to a resource related to this object.
+              properties:
+                href:
+                  type: string
+                  format: uri
+                name:
+                  type: string
+              additionalProperties: false
+          additionalProperties: false
+        name:
+          type: string
+          description: The name of the ref.
+        target:
+          "$ref": "#/components/schemas/commit"
+      required:
+        - type
+      additionalProperties: true
+    branch:
+      allOf:
+        - "$ref": "#/components/schemas/ref"
+        - type: object
+          title: Branch
+          description: A branch object, representing a branch in a repository.
+          properties:
+            merge_strategies:
+              type: array
+              description: Available merge strategies for pull requests targeting this
+                branch.
+              items:
+                type: string
+                enum:
+                  - merge_commit
+                  - squash
+                  - fast_forward
+            default_merge_strategy:
+              type: string
+              description: The default merge strategy for pull requests targeting this
+                branch.
+          additionalProperties: true
+    author:
+      allOf:
+        - "$ref": "#/components/schemas/object"
+        - type: object
+          title: Author
+          description: The author of a change in a repository
+          properties:
+            raw:
+              type: string
+              description: The raw author value from the repository. This may be the
+                only value available if the author does not match a user in Bitbucket.
+            user:
+              "$ref": "#/components/schemas/account"
+          additionalProperties: true
+    base_commit:
+      allOf:
+        - "$ref": "#/components/schemas/object"
+        - type: object
+          title: Base Commit
+          description: The common base type for repository commits.
+          properties:
+            hash:
+              type: string
+              pattern: "[0-9a-f]{7,}?"
+            date:
+              type: string
+              format: date-time
+            author:
+              "$ref": "#/components/schemas/author"
+            message:
+              type: string
+            summary:
+              type: object
+              properties:
+                raw:
+                  type: string
+                  description: The text as it was typed by a user.
+                markup:
+                  type: string
+                  description: The type of markup language the raw content is to be
+                    interpreted in.
+                  enum:
+                    - markdown
+                    - creole
+                    - plaintext
+                html:
+                  type: string
+                  description: The user's content rendered as HTML.
+              additionalProperties: false
+            parents:
+              type: array
+              items:
+                "$ref": "#/components/schemas/base_commit"
+              minItems: 0
+          additionalProperties: true
+    paginated_repositories:
+      type: object
+      title: Paginated Repositories
+      description: A paginated list of repositories.
+      properties:
+        size:
+          type: integer
+          description: Total number of objects in the response.
+          minimum: 0
+        page:
+          type: integer
+          description: Page number of the current results.
+          minimum: 1
+        pagelen:
+          type: integer
+          description: Current number of objects on the existing page.
+          minimum: 1
+        next:
+          type: string
+          format: uri
+          description: Link to the next page if it exists.
+        previous:
+          type: string
+          format: uri
+          description: Link to previous page if it exists.
+        values:
+          type: array
+          items:
+            type: object
+            properties:
+              uuid:
+                type: string
+                description: The repository's immutable id.
+              full_name:
+                type: string
+                description: The concatenation of the repository owner's username and the slugified name.
+              name:
+                type: string
+            required:
+              - uuid
+              - full_name
+              - name
+          minItems: 0
+          uniqueItems: True
+      additionalProperties: False
+    repository:
+      allOf:
+        - "$ref": "#/components/schemas/object"
+        - type: object
+          title: Repository
+          description: A Bitbucket repository.
+          properties:
+            links:
+              type: object
+              properties:
+                self:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                html:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                avatar:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                pullrequests:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                commits:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                forks:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                watchers:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                downloads:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+                clone:
+                  type: array
+                  items:
+                    type: object
+                    title: Link
+                    description: A link to a resource related to this object.
+                    properties:
+                      href:
+                        type: string
+                        format: uri
+                      name:
+                        type: string
+                    additionalProperties: false
+                hooks:
+                  type: object
+                  title: Link
+                  description: A link to a resource related to this object.
+                  properties:
+                    href:
+                      type: string
+                      format: uri
+                    name:
+                      type: string
+                  additionalProperties: false
+              additionalProperties: false
+            uuid:
+              type: string
+              description: The repository's immutable id. This can be used as a substitute for the slug segment in URLs. Doing this guarantees your URLs will survive renaming of the repository by its owner, or even transfer of the repository to a different user.
+            full_name:
+              type: string
+              description: The concatenation of the repository owner's username and the slugified name, e.g. "evzijst/interruptingcow". This is the same string used in Bitbucket URLs.
+            is_private:
+              type: boolean
+            scm:
+              type: string
+              enum:
+                - git
+            owner:
+              "$ref": "#/components/schemas/account"
+            name:
+              type: string
+            description:
+              type: string
+            created_on:
+              type: string
+              format: date-time
+            updated_on:
+              type: string
+              format: date-time
+            size:
+              type: integer
+            language:
+              type: string
+            has_issues:
+              type: boolean
+              description: " The issue tracker for this repository is enabled. Issue Tracker features are not supported for repositories in workspaces administered through admin.atlassian.com. "
+            has_wiki:
+              type: boolean
+              description: " The wiki for this repository is enabled. Wiki features are not supported for repositories in workspaces administered through admin.atlassian.com. "
+            fork_policy:
+              type: string
+              description: " Controls the rules for forking this repository.  * **allow_forks**: unrestricted forking * **no_public_forks**: restrict forking to private forks (forks cannot be made public later) * **no_forks**: deny all forking "
+              enum:
+                - allow_forks
+                - no_public_forks
+                - no_forks
+            project:
+              "$ref": "#/components/schemas/project"
+            mainbranch:
+              "$ref": "#/components/schemas/branch"
+          additionalProperties: true

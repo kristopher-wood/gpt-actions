@@ -1,0 +1,266 @@
+openapi: 3.0.0
+info:
+  title: Weaviate REST API
+  version: 1.0.0
+  description: API for retrieving data from Weaviate Vector Database.
+servers:
+  - url: https://your.weaviate.url
+    description: Weaviate Vector Database
+
+paths:
+  /v1/schema:
+    get:
+      summary: Get schema structure
+      operationId: getSchema
+      description: Retrieve information about the Weaviate schema.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  # Define the properties of your response JSON here
+                  classes:
+                    type: object
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+    post:
+      summary: Create a class
+      description: Create a new data object class in the Weaviate schema.
+      operationId: createClass
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                class:
+                  type: string
+                  description: The name of the class. Multiple words should be concatenated in CamelCase.
+                description:
+                  type: string
+                  description: Description of the class.
+                vectorIndexType:
+                  type: string
+                  description: Defaults to hnsw. Can be omitted in schema definition.
+                vectorIndexConfig:
+                  type: object
+                  description: Vector index type specific settings.
+                vectorizer:
+                  type: string
+                  description: Vectorizer to use for data objects added to this class.
+                moduleConfig:
+                  type: object
+                  properties:
+                    text2vec-contextionary:
+                      type: object
+                      properties:
+                        vectorizeClassName:
+                          type: boolean
+                          description: Include the class name in vector calculation.
+                properties:
+                  type: array
+                  description: An array of property objects.
+                  items:
+                    type: object
+                    properties:
+                      dataType:
+                        type: array
+                        items:
+                          type: string
+                      description:
+                        type: string
+                      name:
+                        type: string
+                      indexFilterable:
+                        type: boolean
+                        description: Should the property be indexed with the filterable index?
+                      indexSearchable:
+                        type: boolean
+                        description: Should the property be indexed to allow search index?
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid input
+
+  /v1/schema/{className}:
+    get:
+      summary: Get a single class from the schema
+      operationId: getSingleClass
+      description: Retrieve information about a specific class in the Weaviate schema.
+      parameters:
+        - in: path
+          name: className
+          required: true
+          schema:
+            type: string
+          description: The name of the class to retrieve.
+      responses:
+        '200':
+          description: Successful response with details of the requested class.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Class'
+        '404':
+          description: Class not found in the schema.
+        '500':
+          description: Internal server error.
+    delete:
+      summary: Delete a class from the schema
+      operationId: deleteClass
+      description: Deletes a specific class from the Weaviate schema.
+      parameters:
+        - in: path
+          name: className
+          required: true
+          schema:
+            type: string
+          description: The name of the class to delete.
+      responses:
+        '200':
+          description: Class successfully deleted.
+        '404':
+          description: Class not found in the schema.
+        '500':
+          description: Internal server error.
+    patch:
+      summary: Update a class in the schema
+      operationId: updateClass
+      description: Updates a specific class in the Weaviate schema.
+      parameters:
+        - in: path
+          name: className
+          required: true
+          schema:
+            type: string
+          description: The name of the class to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                properties:
+                  type: array
+                  description: An array of properties to add or update in the class.
+                  items:
+                    $ref: '#/components/schemas/Property'
+      responses:
+        '200':
+          description: Class successfully updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Class'
+        '400':
+          description: Invalid input or request format.
+        '404':
+          description: Class not found in the schema.
+        '500':
+          description: Internal server error.
+  /v1/schema/{className}/properties:
+    post:
+      summary: Add a property to a class
+      operationId: addPropertyToClass
+      description: Adds a new property to an existing class in the Weaviate schema.
+      parameters:
+        - in: path
+          name: className
+          required: true
+          schema:
+            type: string
+          description: The name of the class to which the property will be added.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Property'
+      responses:
+        '200':
+          description: Property successfully added to the class.
+        '400':
+          description: Invalid input or request format.
+        '404':
+          description: Class not found in the schema.
+        '500':
+          description: Internal server error.
+  /v1/classifications:
+    post:
+      summary: Start a Contextual Classification
+      operationId: startContextualClassification
+      description: Start a contextual classification job using the text2vec-contextionary module.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                # Define your request JSON properties for the contextual classification here. Class = "Document". { title: string, content: string, url: string }
+                class:
+                  type: string
+                basedOnProperties:
+                  type: array
+                  items:
+                    type: string
+                classifyProperties:
+                  type: array
+                  items:
+                    type: string
+                # Additional properties for text2vec-contextionary
+                vectorizer:
+                  type: string
+                vectorizeClassName:
+                  type: boolean
+                vectorizePropertyName:
+                  type: boolean
+      responses:
+        '202':
+          description: Classification job started
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+
+components:
+  schemas:
+    Class:
+      type: object
+      properties:
+        class:
+          type: string
+          description: The name of the class.
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/Property'
+    Property:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the property.
+        dataType:
+          type: array
+          items:
+            type: string
+          description: The data type of the property.
