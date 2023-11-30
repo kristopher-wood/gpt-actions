@@ -23,7 +23,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  # Define the properties of your response JSON here
                   classes:
                     type: object
         '401':
@@ -211,7 +210,6 @@ paths:
             schema:
               type: object
               properties:
-                # Define your request JSON properties for the contextual classification here. Class = "Document". { title: string, content: string, url: string }
                 class:
                   type: string
                 basedOnProperties:
@@ -222,7 +220,6 @@ paths:
                   type: array
                   items:
                     type: string
-                # Additional properties for text2vec-contextionary
                 vectorizer:
                   type: string
                 vectorizeClassName:
