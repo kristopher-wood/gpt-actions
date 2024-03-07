@@ -1,0 +1,148 @@
+openapi: 3.0.0
+info:
+  title: Screeps API
+  description: API for interacting with the Screeps game server, focusing on room and creeps interactions
+  version: "1.0.0"
+servers:
+  - url: 'https://screeps.com/api'
+components:
+  schemas:
+    RoomStatus:
+      type: object
+      properties:
+        room:
+          type: string
+        status:
+          type: string
+        owner:
+          type: object
+          properties:
+            username:
+              type: string
+            level:
+              type: integer
+    TerrainData:
+      type: object
+      properties:
+        terrain:
+          type: array
+          items:
+            type: object
+            properties:
+              x:
+                type: integer
+              y:
+                type: integer
+              type:
+                type: string
+    CreepInfo:
+      type: array
+      items:
+        type: object
+        properties:
+          _id:
+            type: string
+          name:
+            type: string
+          body:
+            type: array
+            items:
+              type: object
+              properties:
+                type:
+                  type: string
+                hits:
+                  type: integer
+          hits:
+            type: integer
+          hitsMax:
+            type: integer
+          energy:
+            type: integer
+          energyCapacity:
+            type: integer
+          spawning:
+            type: boolean
+paths:
+  /user/code:
+    get:
+      summary: Get the current state of the code in your colony
+      operationId: getUserCode
+      security:
+        - TokenAuth: []
+      parameters:
+        - in: query
+          name: shard
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of user's creeps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreepInfo'
+  /user/console:
+    post:
+      summary: Execute a command in the user's console
+      operationId: executeCommand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - expression
+                - shard
+              properties:
+                expression:
+                  type: string
+                  description: The console command expression to be executed.
+                shard:
+                  type: string
+                  description: The shard where the command should be executed. We use 'shard3'.
+                  example: "shard3"
+      responses:
+        "200":
+          description: Command executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: integer
+                    description: Indicates if the request was successful.
+                  result:
+                    type: object
+                    properties:
+                      ok:
+                        type: integer
+                        description: Indicates if the command execution was successful.
+                      n:
+                        type: integer
+                        description: The number of operations executed.
+                  ops:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user:
+                          type: string
+                          description: The user who executed the command.
+                        expression:
+                          type: string
+                          description: The expression that was executed.
+                        _id:
+                          type: string
+                          description: MongoDB ID of the operation.
+                  insertedCount:
+                    type: integer
+                    description: The number of documents inserted into the database.
+                  insertedIds:
+                    type: array
+                    items:
+                      type: string
+                      description: MongoDB IDs for the inserted documents.
